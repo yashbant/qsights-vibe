@@ -1,0 +1,41 @@
+# Secrets and sensitive files
+*.pem
+*.key
+*password*
+*secret*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+.next/
+.nuxt/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+*.cache
+
+# Backups (keep these locally but not in repo)
+BACKUP_*/
