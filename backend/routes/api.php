@@ -532,3 +532,58 @@ Route::prefix('event-contact-messages')->group(function () {
         Route::delete('/{id}', [App\Http\Controllers\Api\EventContactMessageController::class, 'destroy']);
     });
 });
+
+// =====================================================
+// HIERARCHY-BASED EVALUATION EVENT ROUTES
+// =====================================================
+
+// Public Evaluation Taking Routes (Token-based access, no auth required)
+Route::prefix('evaluation/take')->group(function () {
+    Route::get('/{token}', [App\Http\Controllers\Api\EvaluationTakeController::class, 'getByToken']);
+    Route::post('/{token}/submit', [App\Http\Controllers\Api\EvaluationTakeController::class, 'submit']);
+});
+
+// Protected Evaluation Routes
+Route::middleware(['auth:sanctum'])->group(function () {
+    
+    // Evaluation Events CRUD (Admin and Program Admin can manage)
+    Route::prefix('evaluation-events')->group(function () {
+        // Read operations (all authenticated users can list their accessible events)
+        Route::get('/', [App\Http\Controllers\Api\EvaluationEventController::class, 'index']);
+        Route::get('/{id}', [App\Http\Controllers\Api\EvaluationEventController::class, 'show']);
+        
+        // Admin-only operations (create, update, delete)
+        Route::middleware(['role:super-admin,admin,program-admin'])->group(function () {
+            Route::post('/', [App\Http\Controllers\Api\EvaluationEventController::class, 'store']);
+            Route::put('/{id}', [App\Http\Controllers\Api\EvaluationEventController::class, 'update']);
+            Route::patch('/{id}', [App\Http\Controllers\Api\EvaluationEventController::class, 'update']);
+            Route::delete('/{id}', [App\Http\Controllers\Api\EvaluationEventController::class, 'destroy']);
+            
+            // Status management
+            Route::post('/{id}/activate', [App\Http\Controllers\Api\EvaluationEventController::class, 'activate']);
+            Route::post('/{id}/pause', [App\Http\Controllers\Api\EvaluationEventController::class, 'pause']);
+            Route::post('/{id}/complete', [App\Http\Controllers\Api\EvaluationEventController::class, 'complete']);
+        });
+        
+        // Manager operations (trigger evaluation for their direct reports)
+        Route::get('/{id}/available-evaluatees', [App\Http\Controllers\Api\EvaluationEventController::class, 'getAvailableEvaluatees']);
+        Route::post('/{id}/trigger', [App\Http\Controllers\Api\EvaluationEventController::class, 'triggerEvaluation']);
+        Route::get('/{id}/my-assignments', [App\Http\Controllers\Api\EvaluationEventController::class, 'getMyAssignments']);
+        Route::post('/{id}/assignments/{assignmentId}/remind', [App\Http\Controllers\Api\EvaluationEventController::class, 'sendReminder']);
+        
+        // Reports (role-based access controlled in controller)
+        Route::prefix('{id}/reports')->group(function () {
+            Route::get('/summary', [App\Http\Controllers\Api\EvaluationReportController::class, 'getSummary']);
+            Route::get('/by-evaluatee', [App\Http\Controllers\Api\EvaluationReportController::class, 'getByEvaluatee']);
+            Route::get('/completion-status', [App\Http\Controllers\Api\EvaluationReportController::class, 'getCompletionStatus']);
+            Route::get('/my-team', [App\Http\Controllers\Api\EvaluationReportController::class, 'getMyTeamReport']);
+            Route::get('/export', [App\Http\Controllers\Api\EvaluationReportController::class, 'exportReport']);
+        });
+    });
+    
+    // My Evaluations (for logged-in staff to see/complete their pending evaluations)
+    Route::prefix('my-evaluations')->group(function () {
+        Route::get('/pending', [App\Http\Controllers\Api\EvaluationTakeController::class, 'getMyPendingEvaluations']);
+        Route::get('/completed', [App\Http\Controllers\Api\EvaluationTakeController::class, 'getMyCompletedEvaluations']);
+    });
+});
