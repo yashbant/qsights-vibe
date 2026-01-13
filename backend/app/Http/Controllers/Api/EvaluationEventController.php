@@ -59,7 +59,7 @@ class EvaluationEventController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'questionnaire_id' => 'required|uuid|exists:questionnaires,id',
+            'questionnaire_id' => 'required|integer|exists:questionnaires,id',
             'organization_id' => 'nullable|uuid|exists:organizations,id',
             'program_id' => 'nullable|uuid|exists:programs,id',
             'evaluation_type' => 'nullable|in:downward,upward,360',
@@ -114,7 +114,7 @@ class EvaluationEventController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'questionnaire_id' => 'sometimes|uuid|exists:questionnaires,id',
+            'questionnaire_id' => 'sometimes|integer|exists:questionnaires,id',
             'organization_id' => 'nullable|uuid|exists:organizations,id',
             'program_id' => 'nullable|uuid|exists:programs,id',
             'evaluation_type' => 'nullable|in:downward,upward,360',

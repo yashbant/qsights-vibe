@@ -90,38 +90,53 @@ class ActivityApprovalRequestController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'program_id' => 'required|uuid|exists:programs,id',
-            'questionnaire_id' => 'nullable|uuid|exists:questionnaires,id',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|in:survey,poll,assessment',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+        // Log incoming request for debugging
+        \Log::info('Activity approval request received', [
+            'all_data' => $request->all(),
+            'user_id' => $request->user() ? $request->user()->id : null,
+        ]);
+
+        try {
+            $validated = $request->validate([
+                'program_id' => 'required|uuid|exists:programs,id',
+                'questionnaire_id' => 'nullable|integer|exists:questionnaires,id',
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'type' => 'required|in:survey,poll,assessment',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
             'close_date' => 'nullable|date|after_or_equal:end_date',
             'allow_guests' => 'nullable|boolean',
+            'contact_us_enabled' => 'nullable|boolean',
             'is_multilingual' => 'nullable|boolean',
             'languages' => 'nullable|array',
-            'settings' => 'required|array',
-            'registration_form_fields' => 'required|array',
+            'settings' => 'nullable|array',
+            'registration_form_fields' => 'nullable|array',
             'landing_config' => 'nullable|array',
             'time_limit_enabled' => 'nullable|boolean',
             'time_limit_minutes' => 'nullable|integer|min:1',
             'pass_percentage' => 'nullable|numeric|min:0|max:100',
             'max_retakes' => 'nullable|integer|min:0',
-            // Additional details fields - REQUIRED for approval request
+            // Additional details fields - all OPTIONAL for approval request
             'sender_email' => 'nullable|email|max:255',
             'manager_name' => 'nullable|string|max:255',
             'manager_email' => 'nullable|email|max:255',
             'project_code' => 'nullable|string|max:255',
-            'configuration_date' => 'required|date',
-            'configuration_price' => 'required|numeric|min:0',
-            'subscription_price' => 'required|numeric|min:0',
-            'subscription_frequency' => 'required|in:one-time,monthly,quarterly,yearly',
-            'tax_percentage' => 'required|numeric|min:0|max:100',
-            'number_of_participants' => 'required|integer|min:0',
+            'configuration_date' => 'nullable|date',
+            'configuration_price' => 'nullable|numeric|min:0',
+            'subscription_price' => 'nullable|numeric|min:0',
+            'subscription_frequency' => 'nullable|in:one-time,monthly,quarterly,yearly',
+            'tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'number_of_participants' => 'nullable|integer|min:0',
             'questions_to_randomize' => 'nullable|integer|min:0',
         ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Activity approval validation failed', [
+                'errors' => $e->errors(),
+                'input' => $request->all(),
+            ]);
+            throw $e;
+        }
 
         $validated['requested_by'] = $request->user()->id;
         $validated['status'] = 'pending';
