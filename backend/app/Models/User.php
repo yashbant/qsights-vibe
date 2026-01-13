@@ -25,6 +25,7 @@ class User extends Authenticatable
         'role',
         'organization_id',
         'program_id',
+        'reports_to_user_id',
         'avatar',
         'phone',
         'status',
@@ -99,5 +100,101 @@ class User extends Authenticatable
     public function scopeRole($query, string $role)
     {
         return $query->where('role', $role);
+    }
+
+    // ============================================
+    // HIERARCHY RELATIONSHIPS
+    // ============================================
+
+    /**
+     * Get the manager this user reports to
+     */
+    public function reportsTo()
+    {
+        return $this->belongsTo(User::class, 'reports_to_user_id');
+    }
+
+    /**
+     * Get all users who report directly to this user
+     */
+    public function directReports()
+    {
+        return $this->hasMany(User::class, 'reports_to_user_id');
+    }
+
+    /**
+     * Get all participants who report to this user
+     */
+    public function participantReports()
+    {
+        return $this->hasMany(Participant::class, 'reports_to_user_id');
+    }
+
+    /**
+     * Check if this user is a manager (has direct reports)
+     */
+    public function isManager(): bool
+    {
+        return $this->directReports()->exists() || $this->participantReports()->exists();
+    }
+
+    /**
+     * Get all subordinates recursively (users + participants)
+     */
+    public function getAllSubordinates(): array
+    {
+        $subordinates = [];
+        
+        // Direct user reports
+        foreach ($this->directReports as $user) {
+            $subordinates[] = ['type' => 'user', 'id' => $user->id, 'name' => $user->name, 'email' => $user->email];
+            // Recursively get their subordinates
+            $subordinates = array_merge($subordinates, $user->getAllSubordinates());
+        }
+        
+        // Direct participant reports
+        foreach ($this->participantReports as $participant) {
+            $subordinates[] = ['type' => 'participant', 'id' => $participant->id, 'name' => $participant->name, 'email' => $participant->email];
+            // Recursively get their subordinates
+            $subordinates = array_merge($subordinates, $participant->getAllSubordinates());
+        }
+        
+        return $subordinates;
+    }
+
+    /**
+     * Get hierarchy level (distance from top)
+     */
+    public function getHierarchyLevel(): int
+    {
+        $level = 1;
+        $current = $this;
+        
+        while ($current->reportsTo) {
+            $level++;
+            $current = $current->reportsTo;
+        }
+        
+        return $level;
+    }
+
+    // ============================================
+    // EVALUATION RELATIONSHIPS
+    // ============================================
+
+    /**
+     * Get evaluation events created by this user
+     */
+    public function createdEvaluationEvents()
+    {
+        return $this->hasMany(EvaluationEvent::class, 'created_by');
+    }
+
+    /**
+     * Get evaluation assignments triggered by this user
+     */
+    public function triggeredEvaluationAssignments()
+    {
+        return $this->hasMany(EvaluationAssignment::class, 'triggered_by');
     }
 }

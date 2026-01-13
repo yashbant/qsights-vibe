@@ -25,6 +25,8 @@ class Participant extends Model
         'is_preview',
         'preview_user_role',
         'preview_user_email',
+        'reports_to_user_id',
+        'reports_to_participant_id',
     ];
 
     protected $casts = [
@@ -263,5 +265,92 @@ class Participant extends Model
 
             return $participant;
         }
+    }
+
+    // ============================================
+    // HIERARCHY RELATIONSHIPS
+    // ============================================
+
+    /**
+     * Get the User this participant reports to
+     */
+    public function reportsToUser()
+    {
+        return $this->belongsTo(User::class, 'reports_to_user_id');
+    }
+
+    /**
+     * Get the Participant this participant reports to
+     */
+    public function reportsToParticipant()
+    {
+        return $this->belongsTo(Participant::class, 'reports_to_participant_id');
+    }
+
+    /**
+     * Get the manager (User or Participant)
+     */
+    public function getManagerAttribute()
+    {
+        if ($this->reports_to_user_id) {
+            return $this->reportsToUser;
+        }
+        if ($this->reports_to_participant_id) {
+            return $this->reportsToParticipant;
+        }
+        return null;
+    }
+
+    /**
+     * Get all participants who report to this participant
+     */
+    public function directReports()
+    {
+        return $this->hasMany(Participant::class, 'reports_to_participant_id');
+    }
+
+    /**
+     * Check if this participant is a manager (has direct reports)
+     */
+    public function isManager(): bool
+    {
+        return $this->directReports()->exists();
+    }
+
+    /**
+     * Get all subordinates recursively
+     */
+    public function getAllSubordinates(): array
+    {
+        $subordinates = [];
+        
+        foreach ($this->directReports as $participant) {
+            $subordinates[] = ['type' => 'participant', 'id' => $participant->id, 'name' => $participant->name, 'email' => $participant->email];
+            // Recursively get their subordinates
+            $subordinates = array_merge($subordinates, $participant->getAllSubordinates());
+        }
+        
+        return $subordinates;
+    }
+
+    /**
+     * Get hierarchy level (distance from top)
+     */
+    public function getHierarchyLevel(): int
+    {
+        $level = 1;
+        $current = $this;
+        
+        while ($current->reportsToUser || $current->reportsToParticipant) {
+            $level++;
+            if ($current->reportsToUser) {
+                // Reached a User, add their level
+                $level += $current->reportsToUser->getHierarchyLevel() - 1;
+                break;
+            }
+            $current = $current->reportsToParticipant;
+        }
+        
+        return $level;
     }
 }
